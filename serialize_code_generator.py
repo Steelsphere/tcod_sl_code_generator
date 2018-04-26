@@ -126,6 +126,18 @@ def fill_type_only_others():
                     times = 1
 
 
+def add_helper_function():
+    string = ''
+    string += 'template <typename T>\n'
+    string += f'static {type_only}* create_{type_only.lower()}_instance() {{ return new T; }}\n\n'
+    string += f'std::map<std::string, {type_only}*(*)()> type_map = {{\n'
+    for c in classes:
+        if c.name == type_only or c.parent == type_only \
+                or c.parent in type_only_others or c.name in type_only_others:
+            string += f'\t{{ typeid({c.name}).name(), create_{type_only.lower()}_instance<{c.name}> }},\n'
+    string += '};\n'
+    return string
+
 for file in os.listdir(os.fsdecode(sys.argv[1])):
     filename = os.fsdecode(file)
     if filename.endswith('.h'):
@@ -153,9 +165,14 @@ for c in classes:
         final_output += f'// {c.file} - {c.name} - inherits {c.parent}\n'
         final_output += c.generate_code()
 
+if type_only is not None:
+    final_output += '// Helps deserialize derived types\n\n'
+    final_output += add_helper_function()
+
+
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-with open('serializer_output.txt', 'w') as f:
+with open('serializer_output.cpp', 'w') as f:
     f.write(final_output)
 
 print('Done')
